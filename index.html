@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080d16">
+  <title>考試大鐘</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --background: #080d16;
+      --surface: #111a29;
+      --surface-raised: #172338;
+      --line: #293750;
+      --text: #f4f7ff;
+      --muted: #aab8ce;
+      --accent: #7edfc7;
+      --danger: #ff6577;
+      font-family: "Segoe UI", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-width: 320px;
+      min-height: 100vh;
+      margin: 0;
+      color: var(--text);
+      background:
+        radial-gradient(ellipse at 50% 0, rgba(47, 89, 128, .22), transparent 48%),
+        var(--background);
+      font-size: 17px;
+    }
+
+    button, input { font: inherit; }
+    button { color: inherit; }
+
+    .page {
+      width: min(1180px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 34px 0 48px;
+    }
+
+    .page-heading { margin: 0 0 22px; }
+    .page-heading h1 { margin: 0; font-size: clamp(1.7rem, 3vw, 2.25rem); letter-spacing: .06em; }
+    .page-heading p { margin: 7px 0 0; color: var(--muted); }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.55fr) minmax(320px, .85fr);
+      gap: 22px;
+      align-items: start;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: rgba(17, 26, 41, .94);
+      box-shadow: 0 22px 65px rgba(0, 0, 0, .28);
+    }
+
+    .clock-panel {
+      display: flex;
+      min-height: 590px;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 32px;
+      text-align: center;
+    }
+
+    .date {
+      margin: 0 0 12px;
+      color: #c5d2e5;
+      font-size: clamp(1.15rem, 2.4vw, 1.7rem);
+      font-weight: 600;
+      letter-spacing: .08em;
+    }
+
+    .time {
+      margin: 0;
+      font-family: "Cascadia Mono", "Consolas", "Courier New", monospace;
+      font-size: clamp(5rem, 16vw, 12.5rem);
+      font-variant-numeric: tabular-nums;
+      font-weight: 700;
+      letter-spacing: -.075em;
+      line-height: 1.08;
+      white-space: nowrap;
+      text-shadow: 0 8px 45px rgba(91, 175, 202, .17);
+    }
+
+    .countdown {
+      margin: 24px 0 28px;
+      color: var(--accent);
+      font-size: clamp(1.2rem, 2.5vw, 1.85rem);
+      font-weight: 750;
+      letter-spacing: .04em;
+    }
+    .countdown.warning { color: var(--danger); }
+    .countdown.ended { color: #ffd28a; }
+
+    .exam-info {
+      display: grid;
+      width: min(760px, 100%);
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      text-align: left;
+    }
+
+    .info-item {
+      min-width: 0;
+      padding: 15px 18px;
+      border: 1px solid rgba(166, 190, 220, .16);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, .035);
+    }
+    .info-label { display: block; margin-bottom: 6px; color: var(--muted); font-size: .88rem; }
+    .info-value {
+      display: block;
+      overflow-wrap: anywhere;
+      font-size: clamp(1.05rem, 2vw, 1.35rem);
+      font-weight: 700;
+    }
+
+    .fullscreen-button {
+      min-height: 48px;
+      padding: 10px 19px;
+      margin-top: 24px;
+      border: 1px solid rgba(126, 223, 199, .45);
+      border-radius: 12px;
+      color: #dffff7;
+      background: rgba(52, 160, 137, .18);
+      cursor: pointer;
+      font-weight: 750;
+      transition: background .15s, transform .15s;
+    }
+    .fullscreen-button:hover { background: rgba(52, 160, 137, .3); transform: translateY(-1px); }
+    button:focus-visible, input:focus-visible { outline: 3px solid #9ff2dc; outline-offset: 3px; }
+
+    .settings { padding: 25px; }
+    .settings h2 { margin: 0 0 20px; font-size: 1.25rem; }
+    .field { margin-bottom: 18px; }
+    .field label, .field-label {
+      display: block;
+      margin-bottom: 8px;
+      color: #dce6f4;
+      font-size: .97rem;
+      font-weight: 700;
+    }
+    .field input {
+      width: 100%;
+      min-height: 49px;
+      padding: 10px 13px;
+      border: 1px solid #3a4962;
+      border-radius: 11px;
+      color: var(--text);
+      background: #0b121e;
+    }
+    .field input::placeholder { color: #77869d; }
+    .time-range { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; }
+    .range-dash { color: var(--muted); }
+    .count-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .count-fields .field { min-width: 0; }
+    .missing {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 15px 16px;
+      border: 1px solid rgba(126, 223, 199, .24);
+      border-radius: 13px;
+      color: #d8e8f3;
+      background: rgba(126, 223, 199, .07);
+      font-weight: 700;
+    }
+    .missing-value { color: var(--accent); font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+    .storage-status { min-height: 20px; margin: 13px 0 0; color: var(--muted); font-size: .84rem; }
+    .storage-status.error { color: #ff9aa6; }
+
+    .tabs {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      padding: 7px;
+      margin-bottom: 22px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(17, 26, 41, .88);
+    }
+    .tab-button {
+      min-height: 50px;
+      padding: 10px 8px;
+      border: 0;
+      border-radius: 11px;
+      color: var(--muted);
+      background: transparent;
+      cursor: pointer;
+      font-weight: 750;
+    }
+    .tab-button[aria-selected="true"] {
+      color: #eafffa;
+      background: var(--surface-raised);
+      box-shadow: inset 0 0 0 1px rgba(126, 223, 199, .24);
+    }
+    .tab-panel[hidden] { display: none; }
+
+    .bell-layout, .pomodoro-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, .9fr); gap: 22px; align-items: start; }
+    .feature-panel { padding: clamp(22px, 4vw, 38px); }
+    .feature-panel h2 { margin: 0 0 8px; font-size: clamp(1.45rem, 3vw, 2rem); }
+    .feature-description { margin: 0 0 25px; color: var(--muted); line-height: 1.6; }
+    .bell-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .bell-button {
+      min-height: 180px;
+      padding: 20px;
+      border: 1px solid rgba(126, 223, 199, .34);
+      border-radius: 20px;
+      color: white;
+      background: linear-gradient(145deg, rgba(41, 133, 116, .46), rgba(20, 49, 58, .8));
+      cursor: pointer;
+      font-size: clamp(1.7rem, 4vw, 2.8rem);
+      font-weight: 850;
+      letter-spacing: .08em;
+      transition: transform .15s, filter .15s;
+    }
+    .bell-button[data-bell="end"] {
+      border-color: rgba(124, 164, 230, .4);
+      background: linear-gradient(145deg, rgba(68, 105, 163, .55), rgba(28, 43, 70, .86));
+    }
+    .bell-button:hover { filter: brightness(1.14); transform: translateY(-2px); }
+    .bell-button:active { transform: translateY(1px); }
+    .bell-icon { display: block; margin-bottom: 12px; font-size: 3rem; }
+    .field-hint { margin: 7px 0 0; color: var(--muted); font-size: .87rem; line-height: 1.5; }
+    .auto-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 15px 0;
+      margin: 3px 0 17px;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      font-weight: 700;
+    }
+    .auto-toggle input { width: 23px; height: 23px; accent-color: var(--accent); }
+    .schedule-form { display: grid; grid-template-columns: 1fr 1fr auto; align-items: end; gap: 10px; }
+    .schedule-form .field { margin-bottom: 0; }
+    .schedule-form .field input { min-width: 0; }
+    .secondary-button, .delete-button {
+      min-height: 46px;
+      padding: 10px 15px;
+      border: 1px solid #40516b;
+      border-radius: 11px;
+      background: #1a2940;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .secondary-button:hover { border-color: var(--accent); background: #20374b; }
+    .schedule-list { display: grid; gap: 10px; padding: 0; margin: 17px 0 0; list-style: none; }
+    .schedule-empty { padding: 18px; border: 1px dashed #3a4962; border-radius: 12px; color: var(--muted); text-align: center; }
+    .schedule-item {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 12px;
+      padding: 13px 14px;
+      border: 1px solid rgba(166, 190, 220, .16);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, .035);
+    }
+    .schedule-times { font-variant-numeric: tabular-nums; font-weight: 750; }
+    .schedule-times span { display: block; margin-top: 4px; color: var(--muted); font-size: .86rem; font-weight: 500; }
+    .delete-button { min-height: 40px; padding: 7px 11px; border-color: rgba(255, 101, 119, .38); color: #ffb2ba; background: rgba(255, 101, 119, .08); }
+    .delete-button:hover { background: rgba(255, 101, 119, .2); }
+
+    .pomodoro-display { display: grid; min-height: 340px; place-content: center; text-align: center; }
+    .pomodoro-phase { margin: 0 0 13px; color: var(--accent); font-size: clamp(1.2rem, 3vw, 1.75rem); font-weight: 800; }
+    .pomodoro-phase.rest { color: #a8c5ff; }
+    .pomodoro-time {
+      margin: 0;
+      font-family: "Cascadia Mono", "Consolas", "Courier New", monospace;
+      font-size: clamp(5.4rem, 14vw, 9.5rem);
+      font-variant-numeric: tabular-nums;
+      font-weight: 750;
+      letter-spacing: -.07em;
+      line-height: 1.05;
+    }
+    .pomodoro-round { margin: 14px 0 0; color: var(--muted); font-size: 1.15rem; font-weight: 650; }
+    .pomodoro-controls { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; margin-top: 22px; }
+    .pomodoro-controls button {
+      min-height: 48px;
+      padding: 9px 8px;
+      border: 1px solid #40516b;
+      border-radius: 11px;
+      background: #1a2940;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .pomodoro-controls #pomodoro-start { border-color: rgba(126, 223, 199, .46); color: #dffff7; background: rgba(52, 160, 137, .2); }
+    .pomodoro-controls button:hover { filter: brightness(1.18); }
+
+    #clock-panel:fullscreen {
+      width: 100%;
+      height: 100%;
+      min-height: 100vh;
+      padding: 4vh 5vw;
+      border: 0;
+      border-radius: 0;
+      background:
+        radial-gradient(ellipse at 50% 0, rgba(47, 89, 128, .22), transparent 48%),
+        var(--background);
+    }
+    #clock-panel:fullscreen .time { font-size: clamp(7rem, 20vw, 20rem); }
+    #clock-panel:fullscreen .countdown { margin: 2vh 0 3vh; }
+    #clock-panel:fullscreen .exam-info { width: min(1100px, 100%); }
+    #clock-panel:fullscreen .info-item { padding: 18px 22px; }
+    #clock-panel:fullscreen .info-value { font-size: clamp(1.35rem, 2.2vw, 2rem); }
+    #clock-panel:fullscreen .fullscreen-button { display: none; }
+
+    @media (max-width: 850px) {
+      .page { width: min(700px, calc(100% - 28px)); padding-top: 24px; }
+      .layout { grid-template-columns: 1fr; }
+      .bell-layout, .pomodoro-layout { grid-template-columns: 1fr; }
+      .clock-panel { min-height: 500px; }
+      .time { font-size: clamp(5.5rem, 20vw, 10rem); }
+    }
+
+    @media (max-width: 480px) {
+      body { font-size: 16px; }
+      .page { width: calc(100% - 22px); padding-top: 19px; }
+      .page-heading { margin-bottom: 17px; }
+      .tabs { gap: 4px; padding: 5px; margin-bottom: 17px; }
+      .tab-button { min-height: 46px; padding: 8px 3px; font-size: .9rem; }
+      .clock-panel { min-height: 405px; padding: 28px 14px; border-radius: 19px; }
+      .time { font-size: clamp(4rem, 18vw, 6rem); }
+      .countdown { margin: 18px 0 21px; }
+      .exam-info { gap: 8px; }
+      .info-item { padding: 12px 11px; }
+      .info-value { font-size: 1rem; }
+      .settings { padding: 20px; }
+      .feature-panel { padding: 20px; }
+      .bell-buttons { gap: 9px; }
+      .bell-button { min-height: 132px; padding: 13px 8px; font-size: 1.5rem; }
+      .bell-icon { margin-bottom: 6px; font-size: 2.3rem; }
+      .schedule-form { grid-template-columns: 1fr 1fr; }
+      .schedule-form .secondary-button { grid-column: 1 / -1; }
+      .pomodoro-display { min-height: 270px; }
+      .pomodoro-time { font-size: clamp(4.8rem, 21vw, 7rem); }
+      .pomodoro-controls { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-height: 650px) and (min-width: 851px) {
+      .clock-panel { min-height: 0; padding: 4vh 24px; }
+      .time { font-size: clamp(5rem, 17vh, 10rem); }
+      .countdown { margin: 2vh 0; }
+      .info-item { padding: 10px 15px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="page-heading">
+      <h1>考試大鐘</h1>
+      <p>課堂與讀書時間管理工具</p>
+    </header>
+
+    <nav class="tabs" role="tablist" aria-label="功能分頁">
+      <button class="tab-button" id="tab-exam" type="button" role="tab" aria-selected="true" aria-controls="panel-exam">考試大鐘</button>
+      <button class="tab-button" id="tab-bells" type="button" role="tab" aria-selected="false" aria-controls="panel-bells" tabindex="-1">上下課鐘</button>
+      <button class="tab-button" id="tab-pomodoro" type="button" role="tab" aria-selected="false" aria-controls="panel-pomodoro" tabindex="-1">讀書番茄鐘</button>
+    </nav>
+
+    <section class="tab-panel" id="panel-exam" role="tabpanel" aria-labelledby="tab-exam">
+      <div class="layout">
+        <section class="panel clock-panel" id="clock-panel" aria-label="考試時鐘與考試資訊">
+          <p class="date" id="current-date"></p>
+          <p class="time" id="current-time" role="timer" aria-live="off">--:--:--</p>
+          <p class="countdown" id="countdown" aria-live="polite">請設定考試結束時間</p>
+
+          <div class="exam-info" aria-label="考試資訊">
+            <div class="info-item">
+              <span class="info-label">考試科目</span>
+              <span class="info-value" id="display-subject">尚未設定</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">考試時間</span>
+              <span class="info-value" id="display-exam-time">尚未設定</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">監考老師</span>
+              <span class="info-value" id="display-teacher">尚未設定</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">缺考人數</span>
+              <span class="info-value" id="display-absent">—</span>
+            </div>
+          </div>
+
+          <button class="fullscreen-button" id="fullscreen-button" type="button">進入全螢幕</button>
+        </section>
+
+        <section class="panel settings" aria-labelledby="settings-heading">
+          <h2 id="settings-heading">考試設定</h2>
+          <div class="field">
+            <label for="subject">考試科目</label>
+            <input id="subject" type="text" placeholder="例如：數學">
+          </div>
+          <div class="field">
+            <span class="field-label">考試時間（24 小時制）</span>
+            <div class="time-range">
+              <input id="start-time" type="time" aria-label="考試開始時間" step="60">
+              <span class="range-dash" aria-hidden="true">～</span>
+              <input id="end-time" type="time" aria-label="考試結束時間" step="60">
+            </div>
+          </div>
+          <div class="field">
+            <label for="teacher">監考老師</label>
+            <input id="teacher" type="text" placeholder="請輸入監考老師姓名">
+          </div>
+          <div class="count-fields">
+            <div class="field">
+              <label for="expected-count">應到人數</label>
+              <input id="expected-count" type="number" min="0" step="1" inputmode="numeric" placeholder="0">
+            </div>
+            <div class="field">
+              <label for="actual-count">實到人數</label>
+              <input id="actual-count" type="number" min="0" step="1" inputmode="numeric" placeholder="0">
+            </div>
+          </div>
+          <div class="missing">
+            <span>缺考人數</span>
+            <span class="missing-value" id="missing-count">—</span>
+          </div>
+          <p class="storage-status" id="storage-status" role="status" aria-live="polite">資料會自動儲存在此裝置。</p>
+        </section>
+      </div>
+    </section>
+
+    <section class="tab-panel bell-layout" id="panel-bells" role="tabpanel" aria-labelledby="tab-bells" hidden>
+      <section class="panel feature-panel" aria-labelledby="bell-heading">
+        <h2 id="bell-heading">上下課鐘</h2>
+        <p class="feature-description">按下按鈕播放提示鈴聲，也可以啟用課表，在指定時間自動打鐘。</p>
+        <div class="bell-buttons">
+          <button class="bell-button" type="button" data-bell="start">
+            <span class="bell-icon" aria-hidden="true">🔔</span>上課鈴
+          </button>
+          <button class="bell-button" type="button" data-bell="end">
+            <span class="bell-icon" aria-hidden="true">🔔</span>下課鈴
+          </button>
+        </div>
+      </section>
+
+      <section class="panel feature-panel" aria-labelledby="schedule-heading">
+        <h2 id="schedule-heading">每日課表</h2>
+        <label class="auto-toggle" for="auto-bell">
+          <span>啟用自動打鐘</span>
+          <input id="auto-bell" type="checkbox">
+        </label>
+        <form class="schedule-form" id="schedule-form">
+          <div class="field">
+            <label for="class-start">上課時間</label>
+            <input id="class-start" type="time" required step="60">
+          </div>
+          <div class="field">
+            <label for="class-end">下課時間</label>
+            <input id="class-end" type="time" required step="60">
+          </div>
+          <button class="secondary-button" type="submit">新增課表</button>
+        </form>
+        <p class="field-hint">時間到時會自動播放對應鈴聲。請先按過頁面上的按鈕，允許瀏覽器播放音訊。</p>
+        <ul class="schedule-list" id="schedule-list" aria-label="課表清單"></ul>
+        <p class="storage-status" id="bell-status" role="status" aria-live="polite">課表與自動打鐘設定會儲存於此裝置。</p>
+      </section>
+    </section>
+
+    <section class="tab-panel pomodoro-layout" id="panel-pomodoro" role="tabpanel" aria-labelledby="tab-pomodoro" hidden>
+      <section class="panel feature-panel pomodoro-display" aria-label="番茄鐘倒數">
+        <p class="pomodoro-phase" id="pomodoro-phase">專注時間</p>
+        <p class="pomodoro-time" id="pomodoro-time" role="timer" aria-live="off">25:00</p>
+        <p class="pomodoro-round" id="pomodoro-round">第 1 輪</p>
+        <div class="pomodoro-controls">
+          <button id="pomodoro-start" type="button">開始</button>
+          <button id="pomodoro-pause" type="button">暫停</button>
+          <button id="pomodoro-reset" type="button">重設</button>
+          <button id="pomodoro-skip" type="button">跳過</button>
+        </div>
+        <p class="storage-status" id="pomodoro-status" role="status" aria-live="polite">專注結束與休息結束時會播放提示音。</p>
+      </section>
+
+      <section class="panel feature-panel" aria-labelledby="pomodoro-settings-heading">
+        <h2 id="pomodoro-settings-heading">番茄鐘設定</h2>
+        <p class="feature-description">設定每輪的專注與休息時間。計時期間修改設定會套用於下一個階段。</p>
+        <div class="field">
+          <label for="focus-minutes">專注時間（分鐘）</label>
+          <input id="focus-minutes" type="number" min="1" max="180" step="1" value="25" inputmode="numeric">
+        </div>
+        <div class="field">
+          <label for="break-minutes">休息時間（分鐘）</label>
+          <input id="break-minutes" type="number" min="1" max="60" step="1" value="5" inputmode="numeric">
+        </div>
+        <p class="field-hint">切換分頁不會中斷計時。若瀏覽器分頁進入背景，回到頁面時倒數會依實際經過時間更新。</p>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const STORAGE_KEY = "exam-clock-settings";
+      const fieldIds = ["subject", "start-time", "end-time", "teacher", "expected-count", "actual-count"];
+      const fields = Object.fromEntries(fieldIds.map(id => [id, document.getElementById(id)]));
+      const dateDisplay = document.getElementById("current-date");
+      const timeDisplay = document.getElementById("current-time");
+      const countdownDisplay = document.getElementById("countdown");
+      const missingDisplay = document.getElementById("missing-count");
+      const storageStatus = document.getElementById("storage-status");
+      const fullscreenButton = document.getElementById("fullscreen-button");
+      const clockPanel = document.getElementById("clock-panel");
+
+      function setStorageStatus(message, isError = false) {
+        storageStatus.textContent = message;
+        storageStatus.classList.toggle("error", isError);
+      }
+
+      function loadSettings() {
+        try {
+          const stored = localStorage.getItem(STORAGE_KEY);
+          if (!stored) return;
+          const settings = JSON.parse(stored);
+          for (const id of fieldIds) {
+            if (typeof settings[id] === "string") fields[id].value = settings[id];
+          }
+        } catch (error) {
+          console.error("讀取考試設定失敗。", error);
+          setStorageStatus("無法讀取已儲存資料，請確認瀏覽器儲存空間設定。", true);
+        }
+      }
+
+      function saveSettings() {
+        const settings = Object.fromEntries(fieldIds.map(id => [id, fields[id].value]));
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+          setStorageStatus("設定已自動儲存於此裝置。");
+        } catch (error) {
+          console.error("儲存考試設定失敗。", error);
+          setStorageStatus("儲存失敗，請確認瀏覽器是否允許使用本機儲存空間。", true);
+        }
+      }
+
+      function displayValue(id, fallback = "尚未設定") {
+        const value = fields[id].value.trim();
+        return value || fallback;
+      }
+
+      function updateExamInformation() {
+        document.getElementById("display-subject").textContent = displayValue("subject");
+        document.getElementById("display-teacher").textContent = displayValue("teacher");
+
+        const start = fields["start-time"].value;
+        const end = fields["end-time"].value;
+        document.getElementById("display-exam-time").textContent = start && end ? `${start} ～ ${end}` : "尚未設定";
+
+        const expectedValue = fields["expected-count"].value;
+        const actualValue = fields["actual-count"].value;
+        const expected = Number(expectedValue);
+        const actual = Number(actualValue);
+        const validCounts = expectedValue !== "" && actualValue !== ""
+          && Number.isSafeInteger(expected) && Number.isSafeInteger(actual)
+          && expected >= 0 && actual >= 0 && actual <= expected;
+        const missing = validCounts ? String(expected - actual) : "—";
+        missingDisplay.textContent = missing;
+        document.getElementById("display-absent").textContent = missing;
+      }
+
+      function updateClock() {
+        const now = new Date();
+        dateDisplay.textContent = new Intl.DateTimeFormat("zh-Hant", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          weekday: "long"
+        }).format(now);
+        timeDisplay.textContent = [now.getHours(), now.getMinutes(), now.getSeconds()]
+          .map(value => String(value).padStart(2, "0"))
+          .join(":");
+        updateCountdown(now);
+      }
+
+      function updateCountdown(now) {
+        const endValue = fields["end-time"].value;
+        if (!endValue) {
+          countdownDisplay.textContent = "請設定考試結束時間";
+          countdownDisplay.className = "countdown";
+          return;
+        }
+
+        const [endHour, endMinute] = endValue.split(":").map(Number);
+        const endDate = new Date(now);
+        endDate.setHours(endHour, endMinute, 0, 0);
+
+        const startValue = fields["start-time"].value;
+        if (startValue) {
+          const [startHour, startMinute] = startValue.split(":").map(Number);
+          const startMinutes = startHour * 60 + startMinute;
+          const endMinutes = endHour * 60 + endMinute;
+          const currentMinutes = now.getHours() * 60 + now.getMinutes();
+          if (endMinutes < startMinutes && currentMinutes >= startMinutes) {
+            endDate.setDate(endDate.getDate() + 1);
+          }
+        }
+
+        const remainingMilliseconds = endDate.getTime() - now.getTime();
+        if (remainingMilliseconds <= 0) {
+          countdownDisplay.textContent = "考試時間已結束";
+          countdownDisplay.className = "countdown ended";
+          return;
+        }
+
+        const minutes = Math.ceil(remainingMilliseconds / 60000);
+        countdownDisplay.textContent = `距離考試結束還有 ${minutes} 分鐘`;
+        countdownDisplay.className = minutes <= 10 ? "countdown warning" : "countdown";
+      }
+
+      function updateFullscreenButton() {
+        fullscreenButton.textContent = document.fullscreenElement ? "離開全螢幕" : "進入全螢幕";
+      }
+
+      async function toggleFullscreen() {
+        try {
+          if (document.fullscreenElement) {
+            await document.exitFullscreen();
+          } else if (clockPanel.requestFullscreen) {
+            await clockPanel.requestFullscreen();
+          } else {
+            setStorageStatus("此瀏覽器不支援全螢幕模式。", true);
+          }
+        } catch (error) {
+          console.error("切換全螢幕失敗。", error);
+          setStorageStatus("無法切換全螢幕，請確認瀏覽器權限或改用鍵盤全螢幕功能。", true);
+        }
+      }
+
+      loadSettings();
+      updateExamInformation();
+      updateClock();
+      fieldIds.forEach(id => {
+        fields[id].addEventListener("input", () => {
+          updateExamInformation();
+          updateClock();
+          saveSettings();
+        });
+        fields[id].addEventListener("change", () => {
+          updateExamInformation();
+          updateClock();
+          saveSettings();
+        });
+      });
+      fullscreenButton.addEventListener("click", toggleFullscreen);
+      document.addEventListener("fullscreenchange", updateFullscreenButton);
+      window.setInterval(updateClock, 1000);
+
+      const tabButtons = Array.from(document.querySelectorAll('[role="tab"]'));
+      const tabPanels = Array.from(document.querySelectorAll('[role="tabpanel"]'));
+      function selectTab(button) {
+        tabButtons.forEach(tab => {
+          const selected = tab === button;
+          tab.setAttribute("aria-selected", String(selected));
+          tab.tabIndex = selected ? 0 : -1;
+        });
+        tabPanels.forEach(panel => {
+          panel.hidden = panel.id !== button.getAttribute("aria-controls");
+        });
+        if (audioContext && audioContext.state === "suspended") {
+          audioContext.resume().catch(error => {
+            console.error("啟用音訊失敗。", error);
+            setBellStatus("瀏覽器未允許播放音訊，請再次按下鈴聲按鈕。", true);
+          });
+        }
+      }
+
+      tabButtons.forEach((button, index) => {
+        button.addEventListener("click", () => selectTab(button));
+        button.addEventListener("keydown", event => {
+          let nextIndex;
+          if (event.key === "ArrowRight") nextIndex = (index + 1) % tabButtons.length;
+          if (event.key === "ArrowLeft") nextIndex = (index - 1 + tabButtons.length) % tabButtons.length;
+          if (event.key === "Home") nextIndex = 0;
+          if (event.key === "End") nextIndex = tabButtons.length - 1;
+          if (nextIndex !== undefined) {
+            event.preventDefault();
+            tabButtons[nextIndex].focus();
+            selectTab(tabButtons[nextIndex]);
+          }
+        });
+      });
+
+      let audioContext = null;
+      const bellStatus = document.getElementById("bell-status");
+      function setBellStatus(message, isError = false) {
+        bellStatus.textContent = message;
+        bellStatus.classList.toggle("error", isError);
+      }
+
+      async function getAudioContext() {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) throw new Error("此瀏覽器不支援 Web Audio API。");
+        audioContext = audioContext || new AudioContextClass();
+        if (audioContext.state === "suspended") await audioContext.resume();
+        return audioContext;
+      }
+
+      function playBellNote(context, frequency, startAt, peak = 0.2) {
+        [1, 2.01, 2.73].forEach((partial, index) => {
+          const oscillator = context.createOscillator();
+          const gain = context.createGain();
+          const partialGain = peak / (index + 1.5);
+          oscillator.type = "sine";
+          oscillator.frequency.setValueAtTime(frequency * partial, startAt);
+          gain.gain.setValueAtTime(0.0001, startAt);
+          gain.gain.exponentialRampToValueAtTime(partialGain, startAt + 0.018);
+          gain.gain.exponentialRampToValueAtTime(0.0001, startAt + 1.05);
+          oscillator.connect(gain);
+          gain.connect(context.destination);
+          oscillator.start(startAt);
+          oscillator.stop(startAt + 1.08);
+        });
+      }
+
+      async function playBell(kind) {
+        const context = await getAudioContext();
+        const pattern = kind === "start"
+          ? [{ delay: 0, frequency: 880 }, { delay: 0.48, frequency: 1174.66 }, { delay: 0.96, frequency: 1396.91 }]
+          : [{ delay: 0, frequency: 1046.5 }, { delay: 0.3, frequency: 783.99 }];
+        pattern.forEach(note => playBellNote(context, note.frequency, context.currentTime + note.delay, 0.3));
+        setBellStatus(kind === "start" ? "已播放上課鈴。" : "已播放下課鈴。");
+      }
+
+      function playPomodoroTone() {
+        getAudioContext().then(context => {
+          const now = context.currentTime;
+          [880, 1174.66, 1396.91].forEach((frequency, index) => {
+            const startAt = now + index * 0.2;
+            const oscillator = context.createOscillator();
+            const gain = context.createGain();
+            oscillator.type = "sine";
+            oscillator.frequency.setValueAtTime(frequency, startAt);
+            gain.gain.setValueAtTime(0.0001, startAt);
+            gain.gain.exponentialRampToValueAtTime(0.2, startAt + 0.025);
+            gain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.32);
+            oscillator.connect(gain);
+            gain.connect(context.destination);
+            oscillator.start(startAt);
+            oscillator.stop(startAt + 0.34);
+          });
+        }).catch(error => {
+          console.error("播放番茄鐘提示音失敗。", error);
+          document.getElementById("pomodoro-status").textContent = "無法播放提示音，請先操作頁面並確認瀏覽器音訊設定。";
+        });
+      }
+
+      const BELL_STORAGE_KEY = "classroom-bell-settings";
+      const autoBellInput = document.getElementById("auto-bell");
+      const scheduleList = document.getElementById("schedule-list");
+      const scheduleForm = document.getElementById("schedule-form");
+      let schedules = [];
+      let lastAutoBellMinute = "";
+
+      function saveBellSettings() {
+        try {
+          localStorage.setItem(BELL_STORAGE_KEY, JSON.stringify({
+            schedules,
+            autoEnabled: autoBellInput.checked
+          }));
+          setBellStatus("課表與自動打鐘設定已儲存。");
+        } catch (error) {
+          console.error("儲存課表設定失敗。", error);
+          setBellStatus("無法儲存課表，請確認瀏覽器允許使用本機儲存空間。", true);
+        }
+      }
+
+      function renderSchedules() {
+        scheduleList.replaceChildren();
+        if (schedules.length === 0) {
+          const empty = document.createElement("li");
+          empty.className = "schedule-empty";
+          empty.textContent = "尚未新增課表";
+          scheduleList.append(empty);
+          return;
+        }
+
+        [...schedules]
+          .sort((left, right) => left.start.localeCompare(right.start))
+          .forEach(item => {
+            const row = document.createElement("li");
+            row.className = "schedule-item";
+            const times = document.createElement("div");
+            times.className = "schedule-times";
+            times.textContent = `${item.start} ～ ${item.end}`;
+            const labels = document.createElement("span");
+            labels.textContent = "上課鈴　／　下課鈴";
+            times.append(labels);
+            const removeButton = document.createElement("button");
+            removeButton.type = "button";
+            removeButton.className = "delete-button";
+            removeButton.textContent = "刪除";
+            removeButton.setAttribute("aria-label", `刪除 ${item.start} 至 ${item.end} 的課表`);
+            removeButton.addEventListener("click", () => {
+              schedules = schedules.filter(schedule => schedule.id !== item.id);
+              renderSchedules();
+              saveBellSettings();
+            });
+            row.append(times, removeButton);
+            scheduleList.append(row);
+          });
+      }
+
+      function loadBellSettings() {
+        try {
+          const stored = localStorage.getItem(BELL_STORAGE_KEY);
+          if (stored) {
+            const settings = JSON.parse(stored);
+            if (Array.isArray(settings.schedules)) {
+              schedules = settings.schedules.filter(item =>
+                item && typeof item.id === "string"
+                && /^([01]\d|2[0-3]):[0-5]\d$/.test(item.start)
+                && /^([01]\d|2[0-3]):[0-5]\d$/.test(item.end)
+              );
+            }
+            autoBellInput.checked = settings.autoEnabled === true;
+          }
+        } catch (error) {
+          console.error("讀取課表設定失敗。", error);
+          setBellStatus("無法讀取課表資料，請確認瀏覽器儲存空間設定。", true);
+        }
+        renderSchedules();
+      }
+
+      scheduleForm.addEventListener("submit", event => {
+        event.preventDefault();
+        const start = document.getElementById("class-start").value;
+        const end = document.getElementById("class-end").value;
+        if (!start || !end || start === end) {
+          setBellStatus("請輸入有效的上課與下課時間，兩者不可相同。", true);
+          return;
+        }
+        schedules.push({ id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, start, end });
+        scheduleForm.reset();
+        renderSchedules();
+        saveBellSettings();
+      });
+
+      document.querySelectorAll(".bell-button").forEach(button => {
+        button.addEventListener("click", () => {
+          playBell(button.dataset.bell).catch(error => {
+            console.error("播放上下課鈴失敗。", error);
+            setBellStatus(error.message || "無法播放鈴聲，請確認瀏覽器音訊設定。", true);
+          });
+        });
+      });
+
+      autoBellInput.addEventListener("change", () => {
+        saveBellSettings();
+        if (autoBellInput.checked) {
+          getAudioContext().then(() => setBellStatus("自動打鐘已啟用。"))
+            .catch(error => {
+              console.error("啟用自動打鐘音訊失敗。", error);
+              setBellStatus(`${error.message} 請按一次鈴聲按鈕以啟用音訊。`, true);
+            });
+        } else {
+          setBellStatus("自動打鐘已停用。");
+        }
+      });
+
+      function checkAutomaticBell(now) {
+        if (!autoBellInput.checked) return;
+        const minute = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()} ${now.getHours()}:${now.getMinutes()}`;
+        if (now.getSeconds() > 5 || minute === lastAutoBellMinute) return;
+        lastAutoBellMinute = minute;
+        const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+        schedules.forEach(item => {
+          if (item.start === currentTime) {
+            playBell("start").catch(error => {
+              console.error("自動播放上課鈴失敗。", error);
+              setBellStatus("自動播放上課鈴失敗，請確認瀏覽器音訊設定。", true);
+            });
+          }
+          if (item.end === currentTime) {
+            playBell("end").catch(error => {
+              console.error("自動播放下課鈴失敗。", error);
+              setBellStatus("自動播放下課鈴失敗，請確認瀏覽器音訊設定。", true);
+            });
+          }
+        });
+      }
+
+      loadBellSettings();
+
+      const POMODORO_STORAGE_KEY = "study-pomodoro-settings";
+      const focusInput = document.getElementById("focus-minutes");
+      const breakInput = document.getElementById("break-minutes");
+      const pomodoroPhaseDisplay = document.getElementById("pomodoro-phase");
+      const pomodoroTimeDisplay = document.getElementById("pomodoro-time");
+      const pomodoroRoundDisplay = document.getElementById("pomodoro-round");
+      const pomodoroStatus = document.getElementById("pomodoro-status");
+      let focusMinutes = 25;
+      let breakMinutes = 5;
+      let pomodoroPhase = "focus";
+      let pomodoroRound = 1;
+      let pomodoroRemaining = focusMinutes * 60000;
+      let pomodoroDeadline = null;
+
+      function validDuration(input, maximum) {
+        const value = Number(input.value);
+        return input.value !== "" && Number.isSafeInteger(value) && value >= 1 && value <= maximum
+          ? value
+          : null;
+      }
+
+      function loadPomodoroSettings() {
+        try {
+          const stored = localStorage.getItem(POMODORO_STORAGE_KEY);
+          if (!stored) return;
+          const settings = JSON.parse(stored);
+          if (Number.isSafeInteger(settings.focusMinutes) && settings.focusMinutes >= 1 && settings.focusMinutes <= 180) {
+            focusMinutes = settings.focusMinutes;
+          }
+          if (Number.isSafeInteger(settings.breakMinutes) && settings.breakMinutes >= 1 && settings.breakMinutes <= 60) {
+            breakMinutes = settings.breakMinutes;
+          }
+        } catch (error) {
+          console.error("讀取番茄鐘設定失敗。", error);
+          pomodoroStatus.textContent = "無法讀取已儲存的番茄鐘設定。";
+        }
+        focusInput.value = String(focusMinutes);
+        breakInput.value = String(breakMinutes);
+        pomodoroRemaining = focusMinutes * 60000;
+        renderPomodoro();
+      }
+
+      function savePomodoroSettings() {
+        try {
+          localStorage.setItem(POMODORO_STORAGE_KEY, JSON.stringify({ focusMinutes, breakMinutes }));
+          pomodoroStatus.textContent = "番茄鐘設定已儲存；新時間會套用於下一個階段。";
+        } catch (error) {
+          console.error("儲存番茄鐘設定失敗。", error);
+          pomodoroStatus.textContent = "無法儲存番茄鐘設定，請確認瀏覽器儲存空間設定。";
+        }
+      }
+
+      function currentPomodoroDuration() {
+        return (pomodoroPhase === "focus" ? focusMinutes : breakMinutes) * 60000;
+      }
+
+      function renderPomodoro(now = Date.now()) {
+        let remaining = pomodoroRemaining;
+        if (pomodoroDeadline !== null) remaining = Math.max(0, pomodoroDeadline - now);
+        const totalSeconds = Math.ceil(remaining / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        pomodoroTimeDisplay.textContent = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+        pomodoroPhaseDisplay.textContent = pomodoroPhase === "focus" ? "專注時間" : "休息時間";
+        pomodoroPhaseDisplay.classList.toggle("rest", pomodoroPhase === "break");
+        pomodoroRoundDisplay.textContent = `第 ${pomodoroRound} 輪`;
+        document.getElementById("pomodoro-start").textContent = pomodoroDeadline === null ? "開始" : "繼續";
+      }
+
+      function advancePomodoroPhase(nextDeadline) {
+        if (pomodoroPhase === "focus") {
+          pomodoroPhase = "break";
+        } else {
+          pomodoroPhase = "focus";
+          pomodoroRound += 1;
+        }
+        pomodoroRemaining = currentPomodoroDuration();
+        if (nextDeadline === null) {
+          pomodoroDeadline = null;
+        } else if (nextDeadline !== undefined) {
+          pomodoroDeadline = nextDeadline + currentPomodoroDuration();
+        } else {
+          pomodoroDeadline = Date.now() + currentPomodoroDuration();
+        }
+      }
+
+      function tickPomodoro() {
+        if (pomodoroDeadline === null) {
+          renderPomodoro();
+          return;
+        }
+        const now = Date.now();
+        let transitions = 0;
+        while (pomodoroDeadline <= now && transitions < 1000) {
+          advancePomodoroPhase(pomodoroDeadline);
+          transitions += 1;
+        }
+        if (transitions > 0) {
+          playPomodoroTone();
+          pomodoroStatus.textContent = pomodoroPhase === "break" ? "專注時間結束，開始休息。" : "休息時間結束，開始新一輪專注。";
+        }
+        if (transitions === 1000) pomodoroDeadline = now + currentPomodoroDuration();
+        renderPomodoro(now);
+      }
+
+      function startPomodoro() {
+        const validFocus = validDuration(focusInput, 180);
+        const validBreak = validDuration(breakInput, 60);
+        if (validFocus === null || validBreak === null) {
+          pomodoroStatus.textContent = "請輸入有效時間：專注 1～180 分鐘，休息 1～60 分鐘。";
+          return;
+        }
+        if (pomodoroDeadline !== null) return;
+        getAudioContext().catch(error => {
+          console.error("啟用番茄鐘提示音失敗。", error);
+          pomodoroStatus.textContent = "計時已開始，但瀏覽器無法啟用提示音。";
+        });
+        pomodoroDeadline = Date.now() + pomodoroRemaining;
+        pomodoroStatus.textContent = "番茄鐘計時中。";
+        tickPomodoro();
+      }
+
+      document.getElementById("pomodoro-start").addEventListener("click", startPomodoro);
+      document.getElementById("pomodoro-pause").addEventListener("click", () => {
+        if (pomodoroDeadline === null) return;
+        tickPomodoro();
+        if (pomodoroDeadline !== null) {
+          pomodoroRemaining = Math.max(0, pomodoroDeadline - Date.now());
+          pomodoroDeadline = null;
+          pomodoroStatus.textContent = "計時已暫停。";
+          renderPomodoro();
+        }
+      });
+      document.getElementById("pomodoro-reset").addEventListener("click", () => {
+        pomodoroDeadline = null;
+        pomodoroPhase = "focus";
+        pomodoroRound = 1;
+        pomodoroRemaining = focusMinutes * 60000;
+        pomodoroStatus.textContent = "已重設至第 1 輪專注時間。";
+        renderPomodoro();
+      });
+      document.getElementById("pomodoro-skip").addEventListener("click", () => {
+        const wasRunning = pomodoroDeadline !== null;
+        advancePomodoroPhase(wasRunning ? Date.now() : null);
+        playPomodoroTone();
+        pomodoroStatus.textContent = pomodoroPhase === "break" ? "已跳過專注階段，開始休息。" : "已跳過休息階段，開始新一輪專注。";
+        renderPomodoro();
+      });
+
+      function updatePomodoroSettings() {
+        const nextFocus = validDuration(focusInput, 180);
+        const nextBreak = validDuration(breakInput, 60);
+        if (nextFocus === null || nextBreak === null) {
+          pomodoroStatus.textContent = "請輸入有效時間：專注 1～180 分鐘，休息 1～60 分鐘。";
+          return;
+        }
+        const previousDuration = currentPomodoroDuration();
+        focusMinutes = nextFocus;
+        breakMinutes = nextBreak;
+        savePomodoroSettings();
+        if (pomodoroDeadline === null && pomodoroRemaining === previousDuration) {
+          pomodoroRemaining = currentPomodoroDuration();
+        }
+        renderPomodoro();
+      }
+
+      [focusInput, breakInput].forEach(input => {
+        input.addEventListener("change", updatePomodoroSettings);
+        input.addEventListener("input", () => {
+          if (validDuration(focusInput, 180) !== null && validDuration(breakInput, 60) !== null) {
+            updatePomodoroSettings();
+          }
+        });
+      });
+
+      loadPomodoroSettings();
+      renderPomodoro();
+      window.setInterval(() => {
+        checkAutomaticBell(new Date());
+        tickPomodoro();
+      }, 250);
+    })();
+  </script>
+</body>
+</html>
